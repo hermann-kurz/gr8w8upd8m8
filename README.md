@@ -1,3 +1,6 @@
+This is an adaption of https://github.com/skorokithakis/gr8w8upd8m8 using thingspeak.com to store and visualize the data.
+
+# Original README
 # Gr8W8Upd8M8
 
 ## A Wii balance board weight reporter
