@@ -6,7 +6,9 @@ import datetime
 import bluetooth
 import sys
 import subprocess
-
+import httplib
+import urllib
+API_KEY = "put your thingspeak.com apikey here"
 CONTINUOUS_REPORTING = "04"  # Easier as string with leading zero
 
 COMMAND_LIGHT = 11
@@ -117,8 +119,6 @@ class Wiiboard:
 #            print "Could not connect to Wiiboard at address " + address
 
     def receive(self):
-        #try:
-        #   self.receivesocket.settimeout(0.1)       #not for windows?
         while self.status == "Connected" and not self.processor.done:
             data = self.receivesocket.recv(25)
             intype = int(data.encode("hex")[2:4])
@@ -134,8 +134,6 @@ class Wiiboard:
                         self.calibrationRequested = False
             elif intype == EXTENSION_8BYTES:
                 self.processor.mass(self.createBoardEvent(data[2:12]))
-#            else:
-#                print "ACK to data write received"
 
         self.status = "Disconnected"
         self.disconnect()
@@ -157,15 +155,11 @@ class Wiiboard:
 
     # Try to discover a Wiiboard
     def discover(self):
-#        print "Press the red sync button on the board now"
         address = None
         bluetoothdevices = bluetooth.discover_devices(duration=6, lookup_names=True)
         for bluetoothdevice in bluetoothdevices:
             if bluetoothdevice[1] == BLUETOOTH_NAME:
                 address = bluetoothdevice[0]
-#                print "Found Wiiboard at address " + address
-#        if address is None:
-#            print "No Wiiboards discovered."
         return address
 
     def createBoardEvent(self, bytes):
@@ -299,8 +293,18 @@ def main():
     now = datetime.datetime.now()
     if processor.weight > 0:
         print "Weight: ", processor.weight, " Date:", now.strftime("%Y-%m-%d %H:%M")
+        params = urllib.urlencode({'field1': processor.weight, 'key': API_KEY})
+        headers = {"Content-type": "application/x-www-form-urlencoded","Accept":  "text/plain"} 
+        conn = httplib.HTTPConnection("api.thingspeak.com:80")
+        conn.request("POST", "/update", params, headers)
+        response = conn.getresponse()
+        print response.status, response.reason
+        data = response.read()
+        conn.close()
+
     # Disconnect the balance board after exiting.
-    subprocess.check_output(["bluez-test-device", "disconnect", address])
+    if address is not None:
+        subprocess.check_output(["bluez-test-device", "disconnect", address])
 
 if __name__ == "__main__":
     main()
